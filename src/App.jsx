@@ -1,47 +1,59 @@
-import React, { useState } from 'react'
-import Header from './Components/Header'
-import Banner from './Components/Banner'
-import About from './Components/About'
-import Client from './Components/Client'
-import Footer from './Components/Footer'
-import Button from './Components/Common/Button'
-import Formatter from './Components/Common/Formatter'
-import { ThemeProvider } from './Context/ThemeContext'
+import React, { useEffect, useRef, useState } from "react";
 
 const App = () => {
-  let [visible, setvisble] = useState(true);
-  const [value, setvalue] = useState('')
-  const handleVisible = (value) => {
-    setvalue(value);
-    setvisble(!visible)
-  }
+  const lodingRef = useRef();
+  const [products, setproducts] = useState([]);
+  const [page, setpage] = useState(0);
+  const [hasMore, setHasmore] = useState(true);
+  console.log(lodingRef.current);
+
+  useEffect(() => {
+    const fetchFuntion = async () => {
+      const res = await fetch(
+        `https://dummyjson.com/products?limit=10&skip=${page * 10}`
+      );
+      const data = await res.json();
+
+      if (data.products.length == 0) {
+        setHasmore(false);
+      } else {
+        setproducts([...products, ...data.products]);
+        setpage((prev) => prev + 1);
+      }
+    };
+    const obserFunction = (entries) => {
+      const entriesItem = entries[0];
+
+      if (entriesItem.isIntersecting && hasMore) {
+        fetchFuntion();
+      }
+    };
+    const observer = new IntersectionObserver(obserFunction);
+    if (observer && lodingRef.current) {
+      observer.observe(lodingRef.current);
+    }
+
+    //clean up
+    return () => {
+      if (observer && lodingRef.current) {
+        observer.unobserve(lodingRef.current);
+      }
+    };
+  }, [page, hasMore]);
 
   return (
-    <>
-      <ThemeProvider>
-        <Header onVisble={handleVisible} />
-        <Banner >
-          <div className="mt-4 flex justify-center gap-4 sm:mt-6">
-            <Button >
-              <Formatter color={value} visible={visible}>
-                Explore It More
+    <div>
+      <h1>Product List</h1>
+      {products.map((product) => (
+        <>
+          <p key={product.id}>{product.title}</p>
+          <img src={product.images[0]} alt="" />
+        </>
+      ))}
 
-              </Formatter>
-            </Button >
-            <Button >
-              <Formatter color="blue" visible={visible}>
-                Shop  More
-              </Formatter>
-            </Button >
-          </div>
-        </Banner>
-        < About />
+      <h1 ref={lodingRef}>loading ...</h1>
+    </div>
+  );
+};
 
-        <Client />
-        <Footer />
-      </ThemeProvider>
-    </>
-  )
-}
-
-export default App
+export default App;
